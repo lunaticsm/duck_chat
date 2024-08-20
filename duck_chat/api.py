@@ -1,6 +1,7 @@
 from types import TracebackType
 from typing import AsyncGenerator, Self
-
+import asyncio
+import random
 import aiohttp
 import msgspec
 from fake_useragent import UserAgent
@@ -176,16 +177,43 @@ class DuckChat:
                 raise DuckChatException(f"Error while streaming data: {str(e)}")
         self.vqd.append(response.headers.get("x-vqd-4", ""))
 
+ #   async def ask_question_stream(self, query: str) -> AsyncGenerator[str, None]:
+  #      """Stream answer from chat AI"""
+#        if not self.vqd:
+#            await self.get_vqd()
+  #      self.history.add_input(query)
+
+  #      message_list = []
+      #  async for message in self.stream_answer():
+    #        yield message
+   #         message_list.append(message)
+
+    #    self.history.add_answer("".join(message_list))
+        
     async def ask_question_stream(self, query: str) -> AsyncGenerator[str, None]:
-        """Stream answer from chat AI"""
         if not self.vqd:
             await self.get_vqd()
         self.history.add_input(query)
 
         message_list = []
+        chunk = []
+        wait_time = 0.05  # Penundaan 50ms
+        start_time = asyncio.get_event_loop().time() - wait_time
         async for message in self.stream_answer():
-            yield message
+
+            chunk.append(message)
+            current_time = asyncio.get_event_loop().time()
+
+            if current_time - start_time >= wait_time:
+                yield "".join(chunk)
+                chunk = []
+                start_time = current_time
+
             message_list.append(message)
+
+    # Yield any remaining messages in the chunk after the loop ends
+        if chunk:
+            yield "".join(chunk)
 
         self.history.add_answer("".join(message_list))
 
